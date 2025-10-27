@@ -1,55 +1,32 @@
 package Serveur;
-
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Serveur {
-    public static void main(String[] args) {
-        int clientCount = 0; // Compteur de clients
+    // compteur global partagé
+    private static final AtomicInteger compteurGlobal = new AtomicInteger(0);
 
-        try {
-            ServerSocket serverSocket = new ServerSocket(5000);
-            System.out.println("Serveur démarré sur le port 5000...");
+    public static void main(String[] args) {
+        int port = 5000;
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Serveur démarré sur le port " + port + "...");
 
             while (true) {
-                Socket socket = serverSocket.accept();
-                clientCount++;
-                System.out.println("Client " + clientCount + " connecté : " + socket.getInetAddress());
-
-                // On crée un thread pour gérer ce client
-                int clientId = clientCount; // pour l’utiliser dans le thread
-                new Thread(() -> {
-                    try {
-                        BufferedReader in = new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
-                        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-
-                        out.println("Bienvenue Client " + clientId + " !");
-                        out.println("Tapez 'exit' pour quitter.");
-
-                        String message;
-                        while ((message = in.readLine()) != null) {
-                            System.out.println("Client " + clientId + " : " + message);
-
-                            if (message.equalsIgnoreCase("exit")) {
-                                out.println("Déconnexion du serveur...");
-                                break;
-                            }
-
-                            out.println("Serveur → Client " + clientId + " : " + message.toUpperCase());
-                        }
-
-                        socket.close();
-                        System.out.println("Client " + clientId + " déconnecté.");
-
-                    } catch (IOException e) {
-                        System.out.println("Erreur avec le client " + clientId + " : " + e.getMessage());
-                    }
-                }).start(); // Démarre le thread
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Nouveau client connecté : " + clientSocket.getInetAddress());
+                // Démarre un thread pour ce client
+                ProcessServer process = new ProcessServer(clientSocket);
+                process.start();
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // méthode publique et statique, accessible depuis ProcessServer
+    public static synchronized void incrementerCompteur() {
+        int valeur = compteurGlobal.incrementAndGet();
+        System.out.println("Nombre total d’opérations traitées : " + valeur);
     }
 }

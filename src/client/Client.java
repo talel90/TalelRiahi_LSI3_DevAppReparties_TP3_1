@@ -1,5 +1,4 @@
 package client;
-
 import java.io.*;
 import java.net.*;
 import java.util.Scanner;
@@ -7,44 +6,46 @@ import java.util.Scanner;
 public class Client {
     public static void main(String[] args) {
         String host = "localhost";
-        int port = 5000; // même port que le serveur
+        int port = 5000;
 
-        try (Socket socket = new Socket(host, port)) {
-            System.out.println("✅ Connecté au serveur sur le port " + port);
+        try (Socket socket = new Socket(host, port);
+             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+             Scanner sc = new Scanner(System.in)) {
 
-            // Flux de communication
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            System.out.println("Connecté au serveur " + host + ":" + port);
+            System.out.println("Format : nombre opérateur nombre (ex: 5 + 2)");
+            System.out.println("Tapez 'exit' pour quitter.");
 
-            Scanner scanner = new Scanner(System.in);
-
-            // Affiche les messages d'accueil du serveur
-            System.out.println(in.readLine());
-            System.out.println(in.readLine());
-
-            String message;
             while (true) {
-                System.out.print("Vous : ");
-                message = scanner.nextLine();
+                System.out.print("> ");
+                String line = sc.nextLine().trim();
+                if (line.equalsIgnoreCase("exit")) break;
 
-                out.println(message); // Envoie au serveur
-
-                if (message.equalsIgnoreCase("exit")) {
-                    System.out.println("👋 Déconnexion...");
-                    break;
+                String[] parts = line.split(" ");
+                if (parts.length != 3) {
+                    System.out.println("Entrée invalide !");
+                    continue;
                 }
 
-                // Réponse du serveur
-                String response = in.readLine();
-                if (response == null) break;
-                System.out.println(response);
+                try {
+                    double a = Double.parseDouble(parts[0]);
+                    String op = parts[1];
+                    double b = Double.parseDouble(parts[2]);
+
+                    Object[] data = {a, op, b};
+                    out.writeObject(data);
+                    out.flush();
+
+                    Object response = in.readObject();
+                    System.out.println(response);
+                } catch (NumberFormatException e) {
+                    System.out.println("Erreur : nombres invalides !");
+                }
             }
 
-            socket.close();
-            System.out.println("Fin de la communication.");
-
-        } catch (IOException e) {
-            System.out.println("❌ Erreur de connexion : " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
